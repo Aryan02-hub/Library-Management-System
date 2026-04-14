@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel - Full (Responsive)</title>
+
+<style>
+body{margin:0;font-family:sans-serif;background:#0f172a;color:#fff}
+.container{display:flex;flex-wrap:wrap}
+
+.sidebar{
+  width:230px;background:#020617;min-height:100vh;padding:20px
+}
+.sidebar li{margin:12px 0;cursor:pointer}
+
+.main{flex:1;padding:20px}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.userbox{display:flex;align-items:center;gap:10px}
+.userbox img{width:40px;height:40px;border-radius:50%}
+.small{font-size:12px;color:#9ca3af}
+
+.card{background:#1e293b;padding:15px;border-radius:10px;margin-bottom:15px}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:10px
+}
+
+input,textarea{
+  padding:10px;border-radius:5px;border:none;width:100%;margin-bottom:10px
+}
+
+button{
+  padding:6px 12px;border:none;border-radius:5px;cursor:pointer
+}
+
+.add{background:#22c55e}
+.delete{background:#ef4444}
+.save{background:#3b82f6}
+
+img.book{
+  width:100%;height:150px;object-fit:cover;border-radius:8px
+}
+
+.section-title{font-weight:bold;margin-bottom:10px;color:#93c5fd}
+
+@media(max-width:900px){
+  .sidebar{
+    width:100%;min-height:auto;display:flex;overflow-x:auto
+  }
+  .sidebar ul{
+    display:flex;gap:15px
+  }
+  .main{
+    width:100%
+  }
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="sidebar">
+  <h2>Admin</h2>
+  <ul>
+    <li onclick="show('dashboard')">Dashboard</li>
+    <li onclick="show('books')">Manage Books</li>
+    <li onclick="show('users')">Users</li>
+    <li onclick="show('settings')">Settings</li>
+  </ul>
+</div>
+
+<div class="main">
+
+<!-- 🔥 TOPBAR -->
+<div class="topbar">
+  <div>
+    <h2 id="welcome">Welcome Admin</h2>
+    <div class="small">ID: <span id="adminId"></span></div>
+  </div>
+  <div class="userbox">
+    <img id="topPic" src="https://via.placeholder.com/40">
+  </div>
+</div>
+
+<h2 id="title">Dashboard</h2>
+
+<div id="dashboard">
+  <div class="card">Total Books: <span id="totalBooks"></span></div>
+</div>
+
+<div id="books" style="display:none">
+
+  <div class="card">
+    <div class="section-title">➕ Add Book</div>
+    <input id="btitle" placeholder="Title">
+    <input id="bauthor" placeholder="Author">
+    <textarea id="bdesc" placeholder="Description"></textarea>
+    <input type="file" onchange="uploadBookPic(event)">
+    <button class="add" onclick="addBook()">Add Book</button>
+  </div>
+
+  <div class="section-title">📚 All Books</div>
+  <div id="bookList" class="grid"></div>
+
+</div>
+
+<div id="users" style="display:none">
+  <div id="userList"></div>
+</div>
+
+<div id="settings" style="display:none">
+  <div class="card">
+    <div class="section-title">👤 Profile</div>
+    <img id="preview" src="https://via.placeholder.com/100">
+    <input type="file" onchange="uploadAdminPic(event)">
+    <input id="name" placeholder="Name">
+    <input id="email" placeholder="Email">
+  </div>
+
+  <div class="card">
+    <div class="section-title">🔐 Password</div>
+    <input id="newPass" type="password" placeholder="New Password">
+  </div>
+
+  <button class="save" onclick="saveAdmin()">Save</button>
+</div>
+
+</div>
+</div>
+<button onclick="logout()" class="logout-btn">Logout</button>
+<script>
+// let books = JSON.parse(localStorage.getItem("books")) || [];
+let users = [
+  { name: "Aryan", fine: 10 },
+  { name: "Rahul", fine: 0 }
+];
+let admin = JSON.parse(localStorage.getItem("admin")) || { id:"ADM001", name:"Admin", email:"", photo:"" };
+let tempBookImg = "";
+
+function render(){
+  document.getElementById("totalBooks").innerText = books.length;
+
+  // 🔥 topbar update
+  document.getElementById("welcome").innerText = "Welcome " + admin.name;
+  document.getElementById("adminId").innerText = admin.id;
+  if(admin.photo) document.getElementById("topPic").src = admin.photo;
+
+  let list = document.getElementById("bookList");
+  list.innerHTML = "";
+
+  async function loadBooks(){
+  let res = await fetch("http://localhost:5000/books");
+  let books = await res.json();
+
+  let list = document.getElementById("bookList");
+  list.innerHTML = "";
+
+  books.forEach(b => {
+    list.innerHTML += `
+    <div class='card'>
+      <h3>${b.title}</h3>
+      <p>${b.author}</p>
+      <p>${b.description}</p>
+    </div>`;
+  });
+}
+
+  let ulist = document.getElementById("userList");
+  ulist.innerHTML = "";
+  users.forEach(u => {
+    ulist.innerHTML += `<div class='card'>${u.name} | Fine ₹${u.fine}</div>`;
+  });
+
+  document.getElementById("name").value = admin.name;
+  document.getElementById("email").value = admin.email;
+  if(admin.photo) document.getElementById("preview").src = admin.photo;
+}
+
+function uploadBookPic(e){
+  let reader = new FileReader();
+  reader.onload = () => tempBookImg = reader.result;
+  reader.readAsDataURL(e.target.files[0]);
+}
+
+async function addBook(){
+  let title = document.getElementById("btitle").value;
+  let author = document.getElementById("bauthor").value;
+  let desc = document.getElementById("bdesc").value;
+
+  if(!title || !author){
+    return alert("Fill fields");
+  }
+
+  let res = await fetch("http://localhost:5000/books/add", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      title,
+      author,
+      description: desc
+    })
+  });
+
+  let data = await res.json();
+  alert(data.message);
+
+  loadBooks(); // reload list
+}
+function deleteBook(id){
+  books = books.filter(b => b.id !== id);
+  // localStorage.setItem("books", JSON.stringify(books));
+  render();
+}
+
+function uploadAdminPic(e){
+  let reader = new FileReader();
+  reader.onload = () => {
+    admin.photo = reader.result;
+    document.getElementById("preview").src = reader.result;
+    document.getElementById("topPic").src = reader.result;
+  };
+  reader.readAsDataURL(e.target.files[0]);
+}
+
+function saveAdmin(){
+  admin.name = document.getElementById("name").value;
+  admin.email = document.getElementById("email").value;
+  localStorage.setItem("admin", JSON.stringify(admin));
+  render();
+  alert("Saved");
+}
+
+function show(sec){
+  ["dashboard","books","users","settings"].forEach(s=>{
+    document.getElementById(s).style.display="none";
+  });
+  document.getElementById(sec).style.display="block";
+  document.getElementById("title").innerText = sec.toUpperCase();
+}
+let user = JSON.parse(localStorage.getItem("user"));
+
+if(!user || user.role !== "admin"){
+    window.location.href = "../auth/admin-login.html";
+}
+render();
+loadBooks();
+</script>
+
+</body>
+</html>
